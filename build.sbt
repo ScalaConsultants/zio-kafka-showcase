@@ -22,7 +22,7 @@ lazy val producer = project
   .in(file("modules/producer"))
   .settings(
     libraryDependencies ++=
-      zio ++ logging ++ circe ++ jackson
+      zio ++ zioLogging ++ logging ++ circe ++ jackson
   )
   .dependsOn(protocol)
 
@@ -30,6 +30,6 @@ lazy val processor = project
   .in(file("modules/processor"))
   .settings(
     libraryDependencies ++=
-      zio ++ sttp ++ logging ++ circe ++ jackson
+      zio ++ sttp ++ zioLogging ++ logging ++ circe ++ jackson
   )
   .dependsOn(protocol)

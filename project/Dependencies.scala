@@ -21,6 +21,11 @@ object Dependencies {
       "dev.zio" %% "zio-kafka"   % Versions.zioKafka
     )
 
+    val zioLogging = Seq(
+      "dev.zio" %% "zio-logging"       % Versions.zioLogging,
+      "dev.zio" %% "zio-logging-slf4j" % Versions.zioLogging
+    )
+
     val circe = Seq(
       "io.circe" %% "circe-core"    % Versions.circe,
       "io.circe" %% "circe-generic" % Versions.circe
@@ -34,8 +39,6 @@ object Dependencies {
     val logging = Seq(
       "org.apache.logging.log4j" % "log4j-core"        % Versions.log4j,
       "org.apache.logging.log4j" % "log4j-slf4j-impl"  % Versions.log4j,
-      "dev.zio"                 %% "zio-logging"       % Versions.zioLogging,
-      "dev.zio"                 %% "zio-logging-slf4j" % Versions.zioLogging,
       "com.lmax"                 % "disruptor"         % Versions.disruptor
     )
 
