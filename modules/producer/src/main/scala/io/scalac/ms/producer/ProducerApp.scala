@@ -31,7 +31,9 @@ object ProducerApp extends App {
     val producerLayer    = Producer.make[Any, Long, String](producerSettings, Serde.long, Serde.string).toLayer
 
     val loggingLayer = Slf4jLogger.make { (context, message) =>
-      val correlationId = LogAnnotation.CorrelationId.render(context.get(LogAnnotation.CorrelationId))
+      val correlationId = LogAnnotation.CorrelationId.render(
+        context.get(LogAnnotation.CorrelationId)
+      )
       "[correlation-id = %s] %s".format(correlationId, message)
     }
 
