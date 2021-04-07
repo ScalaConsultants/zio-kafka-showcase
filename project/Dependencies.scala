@@ -5,6 +5,7 @@ object Dependencies {
   private object Versions {
     val zio        = "1.0.3"
     val zioKafka   = "0.13.0"
+    val zioConfig  = "1.0.0"
     val zioLogging = "0.4.0"
     val circe      = "0.13.0"
     val sttp       = "2.2.9"
@@ -19,6 +20,11 @@ object Dependencies {
       "dev.zio" %% "zio"         % Versions.zio,
       "dev.zio" %% "zio-streams" % Versions.zio,
       "dev.zio" %% "zio-kafka"   % Versions.zioKafka
+    )
+
+    lazy val zioConfig = Seq(
+      "dev.zio" %% "zio-config-magnolia" % Versions.zioConfig,
+      "dev.zio" %% "zio-config-typesafe" % Versions.zioConfig
     )
 
     val zioLogging = Seq(
