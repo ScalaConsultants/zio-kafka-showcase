@@ -1,13 +1,17 @@
 import Dependencies.Libraries._
 
-name := "zio-kafka-showcase"
-version := "0.1"
-scalaVersion := "2.13.4"
-
 addCommandAlias("fmt", "all scalafmtSbt scalafmtAll")
+
+def stdSettings(projectName: String) =
+  Seq(
+    name := projectName,
+    version := "0.2",
+    scalaVersion := "2.13.10"
+  )
 
 lazy val kafka = project
   .in(file("modules/kafka"))
+  .settings(stdSettings("kafka"))
   .settings(
     libraryDependencies ++=
       embeddedKafka ++ logging,
@@ -16,20 +20,24 @@ lazy val kafka = project
 
 lazy val protocol = project
   .in(file("modules/protocol"))
-  .settings(libraryDependencies ++= circe)
+  .settings(stdSettings("protocol"))
+  .settings(libraryDependencies ++= zio ++ zioJson)
 
 lazy val producer = project
   .in(file("modules/producer"))
+  .settings(stdSettings("producer"))
   .settings(
     libraryDependencies ++=
-      zio ++ zioLogging ++ logging ++ zioConfig ++ circe ++ jackson
+      zio ++ zioJson ++ logging
   )
   .dependsOn(protocol)
 
 lazy val processor = project
   .in(file("modules/processor"))
+  .settings(stdSettings("processor"))
   .settings(
+    scalacOptions += "-Ymacro-annotations",
     libraryDependencies ++=
-      zio ++ sttp ++ zioLogging ++ logging ++ zioConfig ++ circe ++ jackson
+      zio ++ zioHttp ++ zioJson ++ logging
   )
   .dependsOn(protocol)

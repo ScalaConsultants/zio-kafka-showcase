@@ -1,30 +1,18 @@
 package io.scalac.ms.processor.config
 
-import zio._
-import zio.config.read
-import zio.config.magnolia.DeriveConfigDescriptor
-import zio.config.typesafe.TypesafeConfigSource
-import com.typesafe.config.ConfigFactory
+import zio.config.magnolia._
 
-final case class AppConfig(consumer: Consumer, producer: Producer, enrichmentConfig: EnrichmentConfig)
-
-final case class Consumer(bootstrapServers: String, topic: String, groupId: String) {
-  def brokers: List[String] = bootstrapServers.split(",").toList
-}
-
-final case class Producer(bootstrapServers: String, topic: String) {
-  def brokers: List[String] = bootstrapServers.split(",").toList
-}
-
-final case class EnrichmentConfig(baseEndpoint: String)
-
+final case class AppConfig(consumer: AppConfig.Consumer, producer: AppConfig.Producer, enrichment: AppConfig.Enrichment)
 object AppConfig {
-  private val descriptor = DeriveConfigDescriptor.descriptor[AppConfig]
+  lazy val config = deriveConfig[AppConfig]
 
-  def load(): Task[AppConfig] =
-    for {
-      rawConfig    <- ZIO.effect(ConfigFactory.load().getConfig("processor"))
-      configSource <- ZIO.fromEither(TypesafeConfigSource.fromTypesafeConfig(rawConfig))
-      config       <- ZIO.fromEither(read(AppConfig.descriptor.from(configSource)))
-    } yield config
+  final case class Consumer(bootstrapServers: String, topic: String, groupId: String) { self =>
+    lazy val brokers: List[String] = self.bootstrapServers.split(",").toList
+  }
+
+  final case class Producer(bootstrapServers: String, topic: String) { self =>
+    lazy val brokers: List[String] = self.bootstrapServers.split(",").toList
+  }
+
+  final case class Enrichment(host: String)
 }

@@ -1,44 +1,40 @@
 package io.scalac.ms.producer
 
+import io.scalac.ms.protocol.TransactionRaw
 import zio._
-import zio.stream._
-import zio.blocking._
-import zio.kafka.serde._
+import zio.config.typesafe._
 import zio.kafka.producer._
-import zio.logging._
-import zio.logging.slf4j._
-import io.circe.syntax._
-import org.apache.kafka.clients.producer.ProducerRecord
+import zio.kafka.serde._
+import zio.logging.backend._
+import zio.stream._
 
-object ProducerApp extends App {
+object ProducerApp extends ZIOAppDefault {
+  override val bootstrap =
+    Runtime.setConfigProvider(ConfigProvider.fromResourcePath()) >>> Runtime.removeDefaultLoggers >>> SLF4J.slf4j
 
-  type ProducerEnv = Any with Blocking with Producer[Any, Long, String] with Logging
+  override val run =
+    (for {
+      topic <- ZIO.config(AppConfig.config.map(_.topic))
+      _ <- ZStream
+            .fromIterable(EventGenerator.transactions)
+            .mapZIO { transaction =>
+              (ZIO.logInfo("Producing transaction to Kafka...") *>
+                Producer.produce(
+                  topic = topic,
+                  key = transaction.userId,
+                  value = transaction,
+                  keySerializer = Serde.long,
+                  valueSerializer = TransactionRaw.serde
+                )) @@ ZIOAspect.annotated("userId", transaction.userId.toString)
+            }
+            .runDrain
+    } yield ()).provide(
+      producerSettings,
+      Producer.live
+    )
 
-  override def run(args: List[String]) =
-    AppConfig
-      .load()
-      .flatMap(config => program(config).provideSomeLayer[Any with Blocking](createLayer(config)))
-      .exitCode
-
-  private def program(appConfig: AppConfig): ZIO[ProducerEnv, Throwable, Unit] =
-    ZStream
-      .fromIterable(EventGenerator.transactions)
-      .map(transaction => new ProducerRecord(appConfig.topic, transaction.userId, transaction.asJson.toString))
-      .mapM { producerRecord =>
-        log.info(s"Producing $producerRecord to Kafka...") *>
-          Producer.produce[Any, Long, String](producerRecord)
-      }
-      .runDrain
-
-  private def createLayer(appConfig: AppConfig) = {
-    val producerSettings = ProducerSettings(appConfig.brokers)
-    val producerLayer    = Producer.make[Any, Long, String](producerSettings, Serde.long, Serde.string).toLayer
-
-    val loggingLayer = Slf4jLogger.make { (context, message) =>
-      val correlationId = context(LogAnnotation.CorrelationId)
-      "[correlation-id = %s] %s".format(correlationId, message)
+  private lazy val producerSettings =
+    ZLayer {
+      ZIO.config(AppConfig.config.map(_.brokers)).map(ProducerSettings(_))
     }
-
-    loggingLayer ++ producerLayer
-  }
 }

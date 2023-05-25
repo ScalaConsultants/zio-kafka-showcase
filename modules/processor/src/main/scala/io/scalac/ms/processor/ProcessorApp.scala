@@ -1,56 +1,73 @@
 package io.scalac.ms.processor
 
-import zio._
-import zio.clock._
-import zio.console._
-import zio.blocking._
-import zio.duration._
-import zio.kafka.serde._
-import zio.kafka.consumer._
-import zio.kafka.producer._
-import zio.logging._
-import zio.logging.slf4j._
-import sttp.client.asynchttpclient.zio.AsyncHttpClientZioBackend
-import io.scalac.ms.processor.service._
-import io.scalac.ms.processor.cache.CountryCache
+import io.scalac.ms.processor.cache.CountryCacheLive
 import io.scalac.ms.processor.config.AppConfig
+import io.scalac.ms.processor.service._
+import io.scalac.ms.protocol.{ TransactionEnriched, TransactionRaw }
+import zio._
+import zio.config.typesafe._
+import zio.http._
+import zio.kafka.consumer._
+import zio.kafka.consumer.diagnostics.Diagnostics
+import zio.kafka.producer._
+import zio.kafka.serde._
+import zio.logging.backend._
 
-object ProcessorApp extends App {
+object ProcessorApp extends ZIOAppDefault {
+  override val bootstrap =
+    Runtime.setConfigProvider(ConfigProvider.fromResourcePath()) >>> Runtime.removeDefaultLoggers >>> SLF4J.slf4j
 
-  override def run(args: List[String]): URIO[Blocking with Clock with Console, ExitCode] =
-    AppConfig.load().flatMap(config => Pipeline.run.provideSomeLayer(makeLayer(config)).exitCode).exitCode
+  override val run =
+    (for {
+      _         <- ZIO.logInfo("Starting processing pipeline")
+      appConfig <- ZIO.config(AppConfig.config)
+      _ <- Consumer
+            .plainStream(Subscription.topics(appConfig.consumer.topic), Serde.long, TransactionRaw.serde)
+            .mapZIO { committableRecord =>
+              (for {
+                transaction <- Enrichment.enrich(committableRecord.value)
+                _           <- ZIO.logInfo("Producing enriched transaction to Kafka...")
+                _ <- Producer.produce(
+                      topic = appConfig.producer.topic,
+                      key = transaction.userId,
+                      value = transaction,
+                      keySerializer = Serde.long,
+                      valueSerializer = TransactionEnriched.serde
+                    )
+              } yield committableRecord).catchAll { error =>
+                ZIO.logError(s"Got error while consuming: $error") *> ZIO.succeed(committableRecord)
+              } @@ ZIOAspect.annotated("userId", committableRecord.value.userId.toString)
+            }
+            .map(_.offset)
+            .aggregateAsync(Consumer.offsetBatches)
+            .mapZIO(_.commit)
+            .runDrain
+    } yield ()).provide(
+      EnrichmentLive.layer,
+      CountryCacheLive.layer,
+      Client.default,
+      consumerSettings,
+      ZLayer.succeed(Diagnostics.NoOp),
+      Consumer.live,
+      producerSettings,
+      Producer.live
+    )
 
-  private def makeLayer(appConfig: AppConfig) = {
-    val sttpClientLayer = AsyncHttpClientZioBackend.layer()
-    val loggingLayer = Slf4jLogger.make { (context, message) =>
-      val correlationId = context.get(LogAnnotation.CorrelationId)
-      "[correlation-id = %s] %s".format(correlationId, message)
+  private lazy val producerSettings =
+    ZLayer {
+      ZIO.config(AppConfig.config.map(_.producer.brokers)).map(ProducerSettings(_))
     }
-    val enrichmentLayer =
-      (loggingLayer ++ CountryCache.live ++ sttpClientLayer) >>> Enrichment.live(appConfig.enrichmentConfig)
 
-    (Clock.live ++
-      Blocking.live ++
-      loggingLayer ++
-      makeKafkaLayer(appConfig)
-      ++ enrichmentLayer) >>> Pipeline.live(appConfig)
-  }
-
-  private def makeKafkaLayer(appConfig: AppConfig) = {
-    val consumerSettings =
-      ConsumerSettings(appConfig.consumer.brokers)
-        .withGroupId(appConfig.consumer.groupId)
-        .withClientId("client")
-        .withCloseTimeout(30.seconds)
-        .withPollTimeout(10.millis)
-        .withProperty("enable.auto.commit", "false")
-        .withProperty("auto.offset.reset", "earliest")
-
-    val producerSettings = ProducerSettings(appConfig.producer.brokers)
-
-    val consumerLayer = Consumer.make(consumerSettings).toLayer
-    val producerLayer = Producer.make[Any, Long, String](producerSettings, Serde.long, Serde.string).toLayer
-
-    consumerLayer ++ producerLayer
-  }
+  private lazy val consumerSettings =
+    ZLayer {
+      ZIO.config(AppConfig.config.map(_.consumer)).map { consumer =>
+        ConsumerSettings(consumer.brokers)
+          .withGroupId(consumer.groupId)
+          .withClientId("client")
+          .withCloseTimeout(30.seconds)
+          .withPollTimeout(10.millis)
+          .withProperty("enable.auto.commit", "false")
+          .withProperty("auto.offset.reset", "earliest")
+      }
+    }
 }

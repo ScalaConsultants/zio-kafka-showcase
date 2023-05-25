@@ -1,32 +1,31 @@
 package io.scalac.ms.processor.cache
 
-import zio._
 import io.scalac.ms.protocol.Country
+import zio._
+import zio.macros._
 
-object CountryCache {
+@accessible
+trait CountryCache {
+  def get(countryName: String): UIO[Option[Country]]
 
-  trait Service {
-    def get(countryName: String): UIO[Option[Country]]
-    def put(country: Country): UIO[Unit]
-  }
+  def put(country: Country): UIO[Unit]
+}
 
-  def get(countryName: String): URIO[CountryCache, Option[Country]] =
-    ZIO.accessM(_.get.get(countryName))
+final case class CountryCacheLive(ref: Ref[Map[String, Country]]) extends CountryCache { self =>
+  override def get(countryName: String): UIO[Option[Country]] =
+    (for {
+      _      <- ZIO.logInfo(s"Getting country details from cache.")
+      cache  <- self.ref.get
+      result <- ZIO.succeed(cache.get(countryName))
+    } yield result) @@ ZIOAspect.annotated("countryName", countryName)
 
-  def put(country: Country): URIO[CountryCache, Unit] =
-    ZIO.accessM(_.get.put(country))
-
-  lazy val live: ULayer[CountryCache] =
-    Ref.make(Map.empty[String, Country]).map(new Live(_)).toLayer
-
-  final class Live(ref: Ref[Map[String, Country]]) extends Service {
-    override def get(countryName: String): UIO[Option[Country]] =
-      for {
-        cache  <- ref.get
-        result <- ZIO.succeed(cache.get(countryName))
-      } yield result
-
-    override def put(country: Country): UIO[Unit] =
-      ref.update(_ + (country.name -> country))
-  }
+  override def put(country: Country): UIO[Unit] =
+    (ZIO.logInfo("Caching country.") *>
+      self.ref.update(_ + (country.name -> country))) @@ ZIOAspect.annotated("countryName", country.name)
+}
+object CountryCacheLive {
+  lazy val layer: ULayer[CountryCache] =
+    ZLayer {
+      Ref.make(Map.empty[String, Country]).map(CountryCacheLive(_))
+    }
 }

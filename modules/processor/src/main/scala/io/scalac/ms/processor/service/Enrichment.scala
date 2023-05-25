@@ -1,74 +1,61 @@
 package io.scalac.ms.processor.service
 
-import zio._
-import zio.logging._
-import sttp.model.Uri
-import sttp.client.circe._
-import sttp.client.{ basicRequest, UriContext }
-import sttp.client.asynchttpclient.zio.SttpClient
-import io.scalac.ms.protocol._
 import io.scalac.ms.processor.cache.CountryCache
-import io.scalac.ms.processor.config.EnrichmentConfig
-import io.scalac.ms.processor.error.ProcessorError
-import io.scalac.ms.processor.error.ProcessorError._
+import io.scalac.ms.processor.config.AppConfig
+import io.scalac.ms.processor.error.EnrichmentError
+import io.scalac.ms.protocol._
+import zio._
+import zio.http._
+import zio.json._
+import zio.macros._
 
-object Enrichment {
+@accessible
+trait Enrichment {
+  def enrich(transactionRaw: TransactionRaw): IO[EnrichmentError, TransactionEnriched]
+}
 
-  trait Service {
-    def enrich(transactionRaw: TransactionRaw): IO[ProcessorError, TransactionEnriched]
+final case class EnrichmentLive(countryCache: CountryCache, httpClient: Client) extends Enrichment { self =>
+
+  override def enrich(
+    transactionRaw: TransactionRaw
+  ): IO[EnrichmentError, TransactionEnriched] = {
+    val TransactionRaw(userId, countryName, amount) = transactionRaw
+    for {
+      _       <- ZIO.logInfo("Enriching raw transaction.")
+      country <- self.countryCache.get(countryName).someOrElseZIO(self.fetchAndCacheCountryDetails(countryName))
+    } yield TransactionEnriched(userId, country, amount)
   }
 
-  def enrich(transactionRaw: TransactionRaw): ZIO[Enrichment, ProcessorError, TransactionEnriched] =
-    ZIO.accessM(_.get.enrich(transactionRaw))
+  private def fetchAndCacheCountryDetails(
+    countryName: String
+  ): IO[EnrichmentError, Country] =
+    for {
+      _       <- ZIO.logInfo(s"Cache miss. Fetching country details from external API.")
+      country <- self.fetchCountryDetails(countryName)
+      _       <- self.countryCache.put(country)
+    } yield country
 
-  def live(enrichmentConfig: EnrichmentConfig): ZLayer[
-    Logging with CountryCache with SttpClient,
-    Nothing,
-    Enrichment
-  ] = ZLayer.fromFunction { env =>
-    new Service {
-      override def enrich(
-        transactionRaw: TransactionRaw
-      ): IO[ProcessorError, TransactionEnriched] =
-        (for {
-          _       <- log.info(s"Getting country details from cache for ${transactionRaw.country}.")
-          country <- CountryCache.get(transactionRaw.country)
-          result <- country.fold(
-                     fetchAndCacheCountryDetails(transactionRaw.country)
-                   )(ZIO.succeed(_))
-        } yield toTransactionEnriched(
-          transactionRaw,
-          result
-        )).provide(env)
+  private def fetchCountryDetails(
+    countryName: String
+  ): IO[EnrichmentError, Country] =
+    for {
+      host <- ZIO.config(AppConfig.config.map(_.enrichment.host)).orDie
+      response <- (self.httpClient @@ ZClientAspect.requestLogging())
+                   .scheme(Scheme.HTTPS)
+                   .host(host)
+                   .path("/v2/name")
+                   .get(countryName)
+                   .mapError(EnrichmentError.CountryApiUnreachable)
+      responseBody <- response.body.asString.mapError(EnrichmentError.ResponseExtraction)
+      _ <- ZIO
+            .fail(EnrichmentError.UnexpectedResponse(response.status, responseBody))
+            .when(response.status != Status.Ok)
+      country <- ZIO
+                  .fromEither(responseBody.fromJson[NonEmptyChunk[Country]])
+                  .mapBoth(EnrichmentError.ResponseParsing, _.head)
+    } yield country
+}
 
-      private def fetchAndCacheCountryDetails(
-        countryName: String
-      ): ZIO[Logging with CountryCache with SttpClient, ProcessorError, Country] =
-        for {
-          _       <- log.info(s"Cache miss. Fetching country details from external API for ${countryName}.")
-          country <- fetchCountryDetails(countryName)
-          _       <- CountryCache.put(country)
-        } yield country
-
-      private def fetchCountryDetails(
-        countryName: String
-      ): ZIO[SttpClient, ProcessorError, Country] =
-        for {
-          req <- ZIO.succeed(
-                  basicRequest.get(urlOf(countryName)).response(asJson[List[Country]])
-                )
-          res <- SttpClient.send(req).orElseFail(CountryApiUnreachable)
-          country <- res.body.fold(
-                      _ => ZIO.fail(ResponseExtractionError),
-                      res => ZIO.succeed(res.head)
-                    )
-        } yield country
-
-      private def urlOf(countryName: String): Uri =
-        uri"${enrichmentConfig.baseEndpoint}$countryName"
-
-      private def toTransactionEnriched(transactionRaw: TransactionRaw, country: Country) =
-        TransactionEnriched(transactionRaw.userId, country, transactionRaw.amount)
-    }
-  }
+object EnrichmentLive {
+  lazy val layer: URLayer[CountryCache with Client, Enrichment] = ZLayer.fromFunction(EnrichmentLive(_, _))
 }
