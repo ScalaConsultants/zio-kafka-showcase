@@ -6,7 +6,8 @@ def stdSettings(projectName: String) =
   Seq(
     name := projectName,
     version := "0.2",
-    scalaVersion := "2.13.10"
+    scalaVersion := "2.13.10",
+    libraryDependencies += compilerPlugin("com.hmemcpy" %% "zio-clippy" % "0.0.1")
   )
 
 lazy val kafka = project

@@ -35,7 +35,7 @@ object Dependencies {
     )
 
     val logging = Seq(
-      "com.lmax"                 % "disruptor"        % Versions.disruptor,
+      "com.lmax"                 % "disruptor"        % Versions.disruptor, // Needed for log4j's AsyncLogger
       "org.apache.logging.log4j" % "log4j-core"       % Versions.log4j,
       "org.apache.logging.log4j" % "log4j-slf4j-impl" % Versions.log4j
     )
