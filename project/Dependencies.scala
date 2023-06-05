@@ -3,10 +3,11 @@ import sbt._
 object Dependencies {
 
   private object Versions {
-    val disruptor  = "3.4.2"
-    val kafka      = "2.4.1.1"
-    val log4j      = "2.13.3"
+    val disruptor  = "3.4.4"
+    val kafka      = "3.4.0"
+    val log4j      = "2.20.0"
     val zio        = "2.0.13"
+    val zioClippy  = "0.0.1"
     val zioConfig  = "4.0.0-RC16"
     val zioHttp    = "3.0.0-RC2"
     val zioJson    = "0.5.0"
@@ -41,5 +42,9 @@ object Dependencies {
     )
 
     val embeddedKafka = Seq("io.github.embeddedkafka" %% "embedded-kafka" % Versions.kafka)
+
+    val compilerPlugins = Seq(
+      "com.hmemcpy" %% "zio-clippy" % Versions.zioClippy
+    ).map(compilerPlugin)
   }
 }

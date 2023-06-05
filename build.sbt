@@ -7,7 +7,7 @@ def stdSettings(projectName: String) =
     name := projectName,
     version := "0.2",
     scalaVersion := "2.13.10",
-    libraryDependencies += compilerPlugin("com.hmemcpy" %% "zio-clippy" % "0.0.1")
+    libraryDependencies ++= compilerPlugins
   )
 
 lazy val kafka = project
