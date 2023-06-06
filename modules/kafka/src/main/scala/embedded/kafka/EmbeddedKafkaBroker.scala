@@ -1,6 +1,6 @@
 package embedded.kafka
 
-import io.github.embeddedkafka.{EmbeddedK, EmbeddedKafka, EmbeddedKafkaConfig}
+import io.github.embeddedkafka._
 import org.slf4j.LoggerFactory
 
 object EmbeddedKafkaBroker extends App with EmbeddedKafka {
