@@ -1,6 +1,5 @@
 package io.scalac.ms.processor.service
 
-import io.scalac.ms.processor.cache.CountryCache
 import io.scalac.ms.processor.config.AppConfig
 import io.scalac.ms.processor.error.EnrichmentError
 import io.scalac.ms.protocol._

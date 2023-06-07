@@ -1,6 +1,5 @@
 package io.scalac.ms.processor
 
-import io.scalac.ms.processor.cache.CountryCacheLive
 import io.scalac.ms.processor.config.AppConfig
 import io.scalac.ms.processor.service._
 import io.scalac.ms.protocol.{ TransactionEnriched, TransactionRaw }
