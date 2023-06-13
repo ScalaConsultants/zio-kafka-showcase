@@ -6,12 +6,12 @@ object Dependencies {
     val disruptor  = "3.4.4"
     val kafka      = "3.4.0"
     val log4j      = "2.20.0"
-    val zio        = "2.0.13"
+    val zio        = "2.0.15"
     val zioClippy  = "0.0.1"
     val zioConfig  = "4.0.0-RC16"
     val zioHttp    = "3.0.0-RC2"
     val zioJson    = "0.5.0"
-    val zioKafka   = "2.3.1"
+    val zioKafka   = "2.3.2"
     val zioLogging = "2.1.13"
   }
 
