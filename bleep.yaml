@@ -1,0 +1,65 @@
+$schema: https://raw.githubusercontent.com/oyvindberg/bleep/master/schema.json
+$version: 0.0.2
+jvm:
+  name: graalvm-java19:22.3.1
+projects:
+  kafka:
+    dependencies:
+    - com.lmax:disruptor:3.4.4
+    - io.github.embeddedkafka::embedded-kafka:3.4.0
+    - org.apache.logging.log4j:log4j-core:2.20.0
+    - org.apache.logging.log4j:log4j-slf4j-impl:2.20.0
+    extends: template-common
+    folder: ./modules/kafka
+    platform:
+      mainClass: embedded.kafka.EmbeddedKafkaBroker
+  processor:
+    dependencies:
+    - com.lmax:disruptor:3.4.4
+    - dev.zio::zio-http:3.0.0-RC2
+    - org.apache.logging.log4j:log4j-core:2.20.0
+    - org.apache.logging.log4j:log4j-slf4j-impl:2.20.0
+    dependsOn: protocol
+    extends: template-common
+    folder: ./modules/processor
+    scala:
+      options: -Ymacro-annotations
+    platform:
+      mainClass: io.scalac.ms.processor.ProcessorApp
+  producer:
+    dependencies:
+    - com.lmax:disruptor:3.4.4
+    - org.apache.logging.log4j:log4j-core:2.20.0
+    - org.apache.logging.log4j:log4j-slf4j-impl:2.20.0
+    dependsOn: protocol
+    extends: template-common
+    folder: ./modules/producer
+    platform:
+      mainClass: io.scalac.ms.producer.ProducerApp
+  protocol:
+    dependencies:
+    - dev.zio::zio-config-magnolia:4.0.0-RC16
+    - dev.zio::zio-config-typesafe:4.0.0-RC16
+    - dev.zio::zio-json:0.5.0
+    - dev.zio::zio-kafka:2.3.2
+    - dev.zio::zio-logging-slf4j:2.1.13
+    - dev.zio::zio-logging:2.1.13
+    - dev.zio::zio-macros:2.0.15
+    - dev.zio::zio-streams:2.0.15
+    - dev.zio::zio:2.0.15
+    extends: template-common
+    folder: ./modules/protocol
+  scripts:
+    dependencies: build.bleep::bleep-core:${BLEEP_VERSION}
+    platform:
+      name: jvm
+    scala:
+      version: 2.13.11
+templates:
+  template-common:
+    platform:
+      name: jvm
+    sbt-scope: main
+    scala:
+      compilerPlugins: com.hmemcpy::zio-clippy:0.0.1
+      version: 2.13.11
