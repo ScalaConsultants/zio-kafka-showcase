@@ -54,13 +54,13 @@ object ProcessorApp extends ZIOAppDefault {
 
   private lazy val producerSettings =
     ZLayer {
-      ZIO.config(AppConfig.config.map(_.producer.brokers)).map(ProducerSettings(_))
+      ZIO.config(AppConfig.config.map(_.producer.bootstrapServers)).map(ProducerSettings(_))
     }
 
   private lazy val consumerSettings =
     ZLayer {
       ZIO.config(AppConfig.config.map(_.consumer)).map { consumer =>
-        ConsumerSettings(consumer.brokers)
+        ConsumerSettings(consumer.bootstrapServers)
           .withGroupId(consumer.groupId)
           .withClientId("client")
           .withCloseTimeout(30.seconds)

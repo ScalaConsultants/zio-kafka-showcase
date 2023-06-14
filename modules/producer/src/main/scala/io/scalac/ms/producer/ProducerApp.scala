@@ -35,6 +35,6 @@ object ProducerApp extends ZIOAppDefault {
 
   private lazy val producerSettings =
     ZLayer {
-      ZIO.config(AppConfig.config.map(_.brokers)).map(ProducerSettings(_))
+      ZIO.config(AppConfig.config.map(_.bootstrapServers)).map(ProducerSettings(_))
     }
 }

@@ -6,13 +6,9 @@ final case class AppConfig(consumer: AppConfig.Consumer, producer: AppConfig.Pro
 object AppConfig {
   lazy val config = deriveConfig[AppConfig]
 
-  final case class Consumer(bootstrapServers: String, topic: String, groupId: String) { self =>
-    lazy val brokers: List[String] = self.bootstrapServers.split(",").toList
-  }
+  final case class Consumer(bootstrapServers: List[String], topic: String, groupId: String)
 
-  final case class Producer(bootstrapServers: String, topic: String) { self =>
-    lazy val brokers: List[String] = self.bootstrapServers.split(",").toList
-  }
+  final case class Producer(bootstrapServers: List[String], topic: String)
 
   final case class Enrichment(host: String)
 }
