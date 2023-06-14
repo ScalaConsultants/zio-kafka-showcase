@@ -21,8 +21,13 @@ object ProcessorApp extends ZIOAppDefault {
       _         <- ZIO.logInfo("Starting processing pipeline")
       appConfig <- ZIO.config(AppConfig.config)
       _ <- Consumer
-            .plainStream(Subscription.topics(appConfig.consumer.topic), Serde.long, TransactionRaw.serde)
+            .plainStream(
+              subscription = Subscription.topics(appConfig.consumer.topic),
+              keyDeserializer = Serde.long,
+              valueDeserializer = TransactionRaw.serde
+            )
             .mapZIO { committableRecord =>
+              val offset = committableRecord.offset
               (for {
                 transaction <- Enrichment.enrich(committableRecord.value)
                 _           <- ZIO.logInfo("Producing enriched transaction to Kafka...")
@@ -33,14 +38,14 @@ object ProcessorApp extends ZIOAppDefault {
                       keySerializer = Serde.long,
                       valueSerializer = TransactionEnriched.serde
                     )
-              } yield committableRecord).catchAll { error =>
-                ZIO.logError(s"Got error while consuming: $error") *> ZIO.succeed(committableRecord)
+              } yield offset).catchAll { error =>
+                ZIO.logError(s"Got error while processing: $error") *> ZIO.succeed(offset)
               } @@ ZIOAspect.annotated("userId", committableRecord.value.userId.toString)
             }
-            .map(_.offset)
             .aggregateAsync(Consumer.offsetBatches)
             .mapZIO(_.commit)
             .runDrain
+            .catchAll(error => ZIO.logError(s"Got error while consuming: $error"))
     } yield ()).provide(
       EnrichmentLive.layer,
       CountryCacheLive.layer,
