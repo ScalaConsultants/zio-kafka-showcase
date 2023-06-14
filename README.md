@@ -1,7 +1,7 @@
 # zio-kafka-showcase
-Example project that demonstrates how to build Kafka based microservices with Scala and ZIO.
+Example project that demonstrates how to build Kafka-based microservices with Scala and ZIO.
 
-System is build as multi-module sbt project.
+The system is built as a multi-module [Bleep](https://bleep.build/docs/) project.
 
 Modules:
 
@@ -11,9 +11,11 @@ Modules:
 3. [Processor](https://github.com/ScalaConsultants/zio-kafka-showcase/tree/main/modules/processor/src/main/scala/io/scalac/ms/processor) module is responsible for consuming, enriching, and producing those enriched messages to the new Kafka topic.
 
 # How to start
-1. Start [kafka](https://github.com/ScalaConsultants/zio-kafka-showcase/tree/main/modules/kafka/src/main/scala/embedded/kafka)
-2. Start [producer](https://github.com/ScalaConsultants/zio-kafka-showcase/tree/main/modules/producer/src/main/scala/io/scalac/ms/producer)
-3. Start [processor](https://github.com/ScalaConsultants/zio-kafka-showcase/tree/main/modules/processor/src/main/scala/io/scalac/ms/processor)
+
+0. Install Bleep, following the instructions [here](https://bleep.build/docs/installing/)
+1. Start [kafka](https://github.com/ScalaConsultants/zio-kafka-showcase/tree/main/modules/kafka/src/main/scala/embedded/kafka), by executing `bleep run kafka`
+2. Start [producer](https://github.com/ScalaConsultants/zio-kafka-showcase/tree/main/modules/producer/src/main/scala/io/scalac/ms/producer), by executing `bleep run producer`
+3. Start [processor](https://github.com/ScalaConsultants/zio-kafka-showcase/tree/main/modules/processor/src/main/scala/io/scalac/ms/processor), by executing `bleep run processor`
 
 # System Architecture
 
