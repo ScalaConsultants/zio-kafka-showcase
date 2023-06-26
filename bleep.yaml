@@ -5,7 +5,7 @@ jvm:
 projects:
   kafka:
     dependencies:
-    - com.lmax:disruptor:3.4.4
+    - com.lmax:disruptor:3.4.4 # Needed for log4j's AsyncLogger
     - io.github.embeddedkafka::embedded-kafka:3.4.0
     - org.apache.logging.log4j:log4j-core:2.20.0
     - org.apache.logging.log4j:log4j-slf4j-impl:2.20.0
@@ -41,7 +41,7 @@ projects:
     - dev.zio::zio-config-magnolia:4.0.0-RC16
     - dev.zio::zio-config-typesafe:4.0.0-RC16
     - dev.zio::zio-json:0.5.0
-    - dev.zio::zio-kafka:2.3.2
+    - dev.zio::zio-kafka:2.4.0
     - dev.zio::zio-logging-slf4j:2.1.13
     - dev.zio::zio-logging:2.1.13
     - dev.zio::zio-macros:2.0.15
